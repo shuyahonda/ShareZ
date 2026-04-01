@@ -28,12 +28,20 @@ public sealed partial class EditorPage : Page
     {
         this.InitializeComponent();
         DataContext = _viewModel;
+
+        // Listen for shape collection changes to invalidate canvas
+        _viewModel.Shapes.CollectionChanged += (s, e) =>
+        {
+            EditorCanvas.Invalidate();
+        };
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (e.Parameter is string filePath && !string.IsNullOrEmpty(filePath))
+
+        // If a file path was passed as navigation parameter, load it
+        if (e.Parameter is string filePath && !string.IsNullOrEmpty(filePath) && File.Exists(filePath))
         {
             await LoadImageAsync(filePath);
         }
@@ -41,17 +49,28 @@ public sealed partial class EditorPage : Page
 
     public async Task LoadImageAsync(string filePath)
     {
-        _viewModel.ImagePath = filePath;
-        var device = CanvasDevice.GetSharedDevice();
-        _sourceImage = await CanvasBitmap.LoadAsync(device, filePath);
-        _viewModel.SourceImage = _sourceImage;
+        try
+        {
+            _viewModel.ImagePath = filePath;
+            var device = CanvasDevice.GetSharedDevice();
+            _sourceImage = await CanvasBitmap.LoadAsync(device, filePath);
+            _viewModel.SourceImage = _sourceImage;
 
-        EditorCanvas.Width = _sourceImage.SizeInPixels.Width;
-        EditorCanvas.Height = _sourceImage.SizeInPixels.Height;
-        ImageSize.Text = $"{_sourceImage.SizeInPixels.Width} x {_sourceImage.SizeInPixels.Height}";
-        EditorStatus.Text = Path.GetFileName(filePath);
+            EditorCanvas.Width = _sourceImage.SizeInPixels.Width;
+            EditorCanvas.Height = _sourceImage.SizeInPixels.Height;
+            ImageSize.Text = $"{_sourceImage.SizeInPixels.Width} x {_sourceImage.SizeInPixels.Height}";
+            EditorStatus.Text = Path.GetFileName(filePath);
 
-        EditorCanvas.Invalidate();
+            // Show canvas, hide placeholder
+            PlaceholderPanel.Visibility = Visibility.Collapsed;
+            EditorScrollViewer.Visibility = Visibility.Visible;
+
+            EditorCanvas.Invalidate();
+        }
+        catch (Exception ex)
+        {
+            EditorStatus.Text = $"Error loading image: {ex.Message}";
+        }
     }
 
     private void EditorCanvas_CreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
@@ -64,7 +83,9 @@ public sealed partial class EditorPage : Page
         var ds = args.DrawingSession;
 
         // Draw checkered background
-        DrawCheckerboard(ds, (float)sender.ActualWidth, (float)sender.ActualHeight);
+        float canvasWidth = _sourceImage != null ? _sourceImage.SizeInPixels.Width : (float)sender.ActualWidth;
+        float canvasHeight = _sourceImage != null ? _sourceImage.SizeInPixels.Height : (float)sender.ActualHeight;
+        DrawCheckerboard(ds, canvasWidth, canvasHeight);
 
         // Draw source image
         if (_sourceImage != null)
@@ -108,6 +129,7 @@ public sealed partial class EditorPage : Page
         switch (shape.Type)
         {
             case ShapeType.Rectangle:
+                if (shape.Width <= 0 || shape.Height <= 0) break;
                 if (shape.IsFilled)
                     ds.FillRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height, shape.FillColor);
                 ds.DrawRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height,
@@ -115,6 +137,7 @@ public sealed partial class EditorPage : Page
                 break;
 
             case ShapeType.Ellipse:
+                if (shape.Width <= 0 || shape.Height <= 0) break;
                 var center = new Vector2(topLeft.X + shape.Width / 2, topLeft.Y + shape.Height / 2);
                 if (shape.IsFilled)
                     ds.FillEllipse(center, shape.Width / 2, shape.Height / 2, shape.FillColor);
@@ -137,7 +160,8 @@ public sealed partial class EditorPage : Page
                     FontFamily = "Segoe UI",
                     WordWrapping = CanvasWordWrapping.Wrap
                 };
-                ds.DrawText(shape.Text, topLeft.X, topLeft.Y, shape.StrokeColor, format);
+                var text = string.IsNullOrEmpty(shape.Text) ? "Text" : shape.Text;
+                ds.DrawText(text, topLeft.X, topLeft.Y, shape.StrokeColor, format);
                 break;
 
             case ShapeType.Freehand:
@@ -152,16 +176,21 @@ public sealed partial class EditorPage : Page
                 break;
 
             case ShapeType.Blur:
-                DrawBlurRegion(ds, shape);
+                if (shape.Width > 0 && shape.Height > 0)
+                    DrawBlurRegion(ds, shape);
                 break;
 
             case ShapeType.Pixelate:
-                DrawPixelateRegion(ds, shape);
+                if (shape.Width > 0 && shape.Height > 0)
+                    DrawPixelateRegion(ds, shape);
                 break;
 
             case ShapeType.Highlight:
-                var highlightColor = Color.FromArgb(100, shape.StrokeColor.R, shape.StrokeColor.G, shape.StrokeColor.B);
-                ds.FillRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height, highlightColor);
+                if (shape.Width > 0 && shape.Height > 0)
+                {
+                    var highlightColor = Color.FromArgb(100, shape.StrokeColor.R, shape.StrokeColor.G, shape.StrokeColor.B);
+                    ds.FillRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height, highlightColor);
+                }
                 break;
 
             case ShapeType.Step:
@@ -169,19 +198,24 @@ public sealed partial class EditorPage : Page
                 break;
 
             case ShapeType.Crop:
-                // Draw crop region indicator
-                ds.DrawRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height,
-                    Color.FromArgb(255, 255, 255, 255), 2, new CanvasStrokeStyle { DashStyle = CanvasDashStyle.Dash });
+                if (shape.Width > 0 && shape.Height > 0)
+                {
+                    ds.DrawRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height,
+                        Color.FromArgb(255, 255, 255, 255), 2, new CanvasStrokeStyle { DashStyle = CanvasDashStyle.Dash });
+                }
                 break;
         }
     }
 
     private void DrawArrow(CanvasDrawingSession ds, AnnotationShape shape)
     {
+        var diff = shape.EndPoint - shape.StartPoint;
+        if (diff.Length() < 2) return;
+
         ds.DrawLine(shape.StartPoint, shape.EndPoint, shape.StrokeColor, shape.StrokeWidth);
 
         // Draw arrowhead
-        var direction = Vector2.Normalize(shape.EndPoint - shape.StartPoint);
+        var direction = Vector2.Normalize(diff);
         var perpendicular = new Vector2(-direction.Y, direction.X);
         float arrowSize = shape.StrokeWidth * 4 + 8;
 
@@ -228,18 +262,41 @@ public sealed partial class EditorPage : Page
         if (_sourceImage == null) return;
 
         var topLeft = shape.TopLeft;
-        int pixelSize = shape.PixelSize;
+        int pixelSize = Math.Max(1, shape.PixelSize);
 
-        // Simplified pixelation: draw colored rectangles
-        for (float y = topLeft.Y; y < topLeft.Y + shape.Height; y += pixelSize)
+        try
         {
-            for (float x = topLeft.X; x < topLeft.X + shape.Width; x += pixelSize)
+            // Real pixelation: scale down then scale up within the region
+            var scaleDown = new ScaleEffect
             {
-                var color = Color.FromArgb(255,
-                    (byte)(((int)x * 37 + (int)y * 53) % 256),
-                    (byte)(((int)x * 47 + (int)y * 67) % 256),
-                    (byte)(((int)x * 59 + (int)y * 71) % 256));
-                ds.FillRectangle(x, y, pixelSize, pixelSize, color);
+                Source = _sourceImage,
+                Scale = new Vector2(1f / pixelSize),
+                InterpolationMode = Microsoft.Graphics.Canvas.CanvasImageInterpolation.NearestNeighbor
+            };
+            var scaleUp = new ScaleEffect
+            {
+                Source = scaleDown,
+                Scale = new Vector2(pixelSize),
+                InterpolationMode = Microsoft.Graphics.Canvas.CanvasImageInterpolation.NearestNeighbor
+            };
+
+            using var layer = ds.CreateLayer(1f,
+                new Windows.Foundation.Rect(topLeft.X, topLeft.Y, shape.Width, shape.Height));
+            ds.DrawImage(scaleUp);
+        }
+        catch
+        {
+            // Fallback: draw grid of colored rectangles
+            for (float y = topLeft.Y; y < topLeft.Y + shape.Height; y += pixelSize)
+            {
+                for (float x = topLeft.X; x < topLeft.X + shape.Width; x += pixelSize)
+                {
+                    var color = Color.FromArgb(255,
+                        (byte)(((int)x * 37 + (int)y * 53) % 200 + 50),
+                        (byte)(((int)x * 47 + (int)y * 67) % 200 + 50),
+                        (byte)(((int)x * 59 + (int)y * 71) % 200 + 50));
+                    ds.FillRectangle(x, y, pixelSize, pixelSize, color);
+                }
             }
         }
     }
@@ -268,8 +325,17 @@ public sealed partial class EditorPage : Page
     // Pointer Events
     private void EditorCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        if (_sourceImage == null) return;
+
         var point = e.GetCurrentPoint(EditorCanvas);
         var position = new Vector2((float)point.Position.X, (float)point.Position.Y);
+
+        // For Text tool, show input dialog instead of drawing
+        if (_viewModel.SelectedTool == ShapeType.Text)
+        {
+            _ = ShowTextInputDialogAsync(position);
+            return;
+        }
 
         _currentShape = _viewModel.CreateShape(position);
         _isDrawing = true;
@@ -311,13 +377,60 @@ public sealed partial class EditorPage : Page
             var position = new Vector2((float)point.Position.X, (float)point.Position.Y);
             _currentShape.EndPoint = position;
 
-            _viewModel.AddShape(_currentShape);
+            // Only add shapes that have a minimum size (except step and freehand)
+            bool shouldAdd = _currentShape.Type switch
+            {
+                ShapeType.Step => true,
+                ShapeType.Freehand => _currentShape.FreehandPoints.Count >= 2,
+                ShapeType.Line or ShapeType.Arrow =>
+                    Vector2.Distance(_currentShape.StartPoint, _currentShape.EndPoint) > 2,
+                _ => _currentShape.Width > 2 || _currentShape.Height > 2
+            };
+
+            if (shouldAdd)
+            {
+                _viewModel.AddShape(_currentShape);
+            }
+
             _currentShape = null;
             _isDrawing = false;
             EditorCanvas.Invalidate();
         }
 
         EditorCanvas.ReleasePointerCaptures();
+    }
+
+    private async Task ShowTextInputDialogAsync(Vector2 position)
+    {
+        var textBox = new TextBox
+        {
+            PlaceholderText = "Enter text...",
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinWidth = 300,
+            MinHeight = 80
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = "Add Text Annotation",
+            Content = textBox,
+            PrimaryButtonText = "Add",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = this.XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(textBox.Text))
+        {
+            _viewModel.TextInput = textBox.Text;
+            var shape = _viewModel.CreateShape(position);
+            shape.Text = textBox.Text;
+            shape.EndPoint = position + new Vector2(200, 50); // Default text area size
+            _viewModel.AddShape(shape);
+            EditorCanvas.Invalidate();
+        }
     }
 
     // Toolbar Events
@@ -347,15 +460,45 @@ public sealed partial class EditorPage : Page
         _viewModel.IsFilled = FilledCheck.IsChecked == true;
     }
 
-    private void Undo_Click(object sender, RoutedEventArgs e) => _viewModel.UndoCommand.Execute(null);
-    private void Redo_Click(object sender, RoutedEventArgs e) => _viewModel.RedoCommand.Execute(null);
+    private void Undo_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.UndoCommand.Execute(null);
+        EditorCanvas.Invalidate();
+    }
+
+    private void Redo_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.RedoCommand.Execute(null);
+        EditorCanvas.Invalidate();
+    }
 
     private void CopyClipboard_Click(object sender, RoutedEventArgs e) =>
         _viewModel.CopyToClipboardCommand.Execute(null);
 
+    private async void OpenImage_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Windows.Storage.Pickers.FileOpenPicker();
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow!);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+        picker.FileTypeFilter.Add(".png");
+        picker.FileTypeFilter.Add(".jpg");
+        picker.FileTypeFilter.Add(".jpeg");
+        picker.FileTypeFilter.Add(".bmp");
+        picker.FileTypeFilter.Add(".gif");
+        picker.FileTypeFilter.Add(".tiff");
+
+        var file = await picker.PickSingleFileAsync();
+        if (file != null)
+        {
+            _viewModel.ClearAllCommand.Execute(null);
+            await LoadImageAsync(file.Path);
+        }
+    }
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
-        if (_viewModel.ImagePath != null)
+        if (_viewModel.ImagePath != null && _sourceImage != null)
         {
             await SaveAnnotatedImageAsync(_viewModel.ImagePath);
             EditorStatus.Text = "Saved!";
@@ -364,17 +507,48 @@ public sealed partial class EditorPage : Page
 
     private async void SaveAs_Click(object sender, RoutedEventArgs e)
     {
-        await _viewModel.SaveImageAsCommand.ExecuteAsync(null);
-        if (_viewModel.ImagePath != null)
+        if (_sourceImage == null) return;
+
+        var picker = new Windows.Storage.Pickers.FileSavePicker();
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow!);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+        picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+        picker.FileTypeChoices.Add("PNG Image", new List<string> { ".png" });
+        picker.FileTypeChoices.Add("JPEG Image", new List<string> { ".jpg", ".jpeg" });
+        picker.FileTypeChoices.Add("BMP Image", new List<string> { ".bmp" });
+        picker.SuggestedFileName = Path.GetFileNameWithoutExtension(_viewModel.ImagePath ?? "screenshot");
+
+        var file = await picker.PickSaveFileAsync();
+        if (file != null)
         {
-            await SaveAnnotatedImageAsync(_viewModel.ImagePath);
-            EditorStatus.Text = $"Saved as: {Path.GetFileName(_viewModel.ImagePath)}";
+            _viewModel.ImagePath = file.Path;
+            await SaveAnnotatedImageAsync(file.Path);
+            EditorStatus.Text = $"Saved as: {Path.GetFileName(file.Path)}";
         }
     }
 
     private async void Upload_Click(object sender, RoutedEventArgs e)
     {
-        await _viewModel.UploadCommand.ExecuteAsync(null);
+        if (_sourceImage == null) return;
+
+        // Save to temp file first, then upload
+        var tempPath = Path.Combine(Path.GetTempPath(), $"ShareZ_upload_{Guid.NewGuid():N}.png");
+        await SaveAnnotatedImageAsync(tempPath);
+
+        EditorStatus.Text = "Uploading...";
+        var result = await App.UploadService.UploadAsync(tempPath);
+        if (result?.IsSuccess == true)
+        {
+            App.ClipboardService.CopyUrl(result.Url);
+            EditorStatus.Text = $"Uploaded! URL copied: {result.Url}";
+        }
+        else
+        {
+            EditorStatus.Text = $"Upload failed: {result?.ErrorMessage}";
+        }
+
+        // Clean up temp file
+        try { File.Delete(tempPath); } catch { }
     }
 
     private async Task SaveAnnotatedImageAsync(string filePath)
@@ -395,8 +569,19 @@ public sealed partial class EditorPage : Page
             }
         }
 
+        // Determine format from file extension
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        var format = ext switch
+        {
+            ".jpg" or ".jpeg" => CanvasBitmapFileFormat.Jpeg,
+            ".bmp" => CanvasBitmapFileFormat.Bmp,
+            ".gif" => CanvasBitmapFileFormat.Gif,
+            ".tiff" or ".tif" => CanvasBitmapFileFormat.Tiff,
+            _ => CanvasBitmapFileFormat.Png
+        };
+
         using var stream = new FileStream(filePath, FileMode.Create);
-        var format = Helpers.ImageFormatHelper.GetCanvasBitmapFormat(App.Settings.DefaultImageFormat);
-        await renderTarget.SaveAsync(stream.AsRandomAccessStream(), format);
+        await renderTarget.SaveAsync(stream.AsRandomAccessStream(), format,
+            format == CanvasBitmapFileFormat.Jpeg ? App.Settings.JpegQuality / 100f : 1f);
     }
 }

@@ -30,6 +30,27 @@ public sealed partial class MainWindow : Window
             App.HotkeyService.HotkeyPressed += OnHotkeyPressed;
         }
 
+        // Handle "Open in Editor" after capture
+        if (App.TaskService != null)
+        {
+            App.TaskService.OpenInEditorRequested += (s, filePath) =>
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    ContentFrame.Navigate(typeof(EditorPage), filePath);
+                    // Select the editor nav item
+                    foreach (var menuItem in NavView.MenuItems)
+                    {
+                        if (menuItem is NavigationViewItem navItem && navItem.Tag?.ToString() == "editor")
+                        {
+                            NavView.SelectedItem = navItem;
+                            break;
+                        }
+                    }
+                });
+            };
+        }
+
         // Update recording status
         if (App.RecordingService != null)
         {

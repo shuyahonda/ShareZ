@@ -1,10 +1,15 @@
 using ShareZ.Models;
+using ShareZ.Views.Pages;
 
 namespace ShareZ.Services;
 
 public class TaskService
 {
     private readonly AppSettings _settings;
+
+    /// Raised when the editor should open with a file path.
+    /// MainWindow subscribes to this to navigate the content frame.
+    public event EventHandler<string>? OpenInEditorRequested;
 
     public TaskService(AppSettings settings)
     {
@@ -37,6 +42,11 @@ public class TaskService
             }
         }
 
+        if (tasks.HasFlag(AfterCaptureTask.OpenInEditor))
+        {
+            OpenInEditorRequested?.Invoke(this, filePath);
+        }
+
         if (tasks.HasFlag(AfterCaptureTask.ShowNotification))
         {
             ShowNotification("Screenshot captured", Path.GetFileName(filePath));
@@ -56,8 +66,10 @@ public class TaskService
 
     private void ShowNotification(string title, string message)
     {
-        // Use Windows notification system via AppNotificationManager
-        // Simplified for now - full implementation would use ToastNotifications
+        if (App.TrayIconService != null)
+        {
+            App.TrayIconService.ShowBalloonNotification(title, message);
+        }
         System.Diagnostics.Debug.WriteLine($"Notification: {title} - {message}");
     }
 }
