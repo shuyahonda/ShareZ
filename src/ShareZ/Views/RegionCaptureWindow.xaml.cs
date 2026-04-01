@@ -2,6 +2,7 @@ using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using ShareZ.Models;
 using System.Numerics;
@@ -17,6 +18,7 @@ public sealed partial class RegionCaptureWindow : Window
     private Vector2 _currentPoint;
     private bool _isSelecting;
     private bool _isCompleted;
+    private bool _isFlashing;
 
     public Rect? SelectedRegion { get; private set; }
 
@@ -72,24 +74,32 @@ public sealed partial class RegionCaptureWindow : Window
             // Clear the selection area (make it transparent)
             ds.FillRectangle(left, top, selWidth, selHeight, Color.FromArgb(0, 0, 0, 0));
 
-            // Draw selection border
-            ds.DrawRectangle(left, top, selWidth, selHeight,
-                Color.FromArgb(255, 0, 170, 255), 2);
+            if (_isFlashing)
+            {
+                // Flash: white overlay over selection
+                ds.FillRectangle(left, top, selWidth, selHeight, Color.FromArgb(200, 255, 255, 255));
+            }
+            else
+            {
+                // Draw selection border
+                ds.DrawRectangle(left, top, selWidth, selHeight,
+                    Color.FromArgb(255, 0, 170, 255), 2);
 
-            // Draw crosshair lines
-            var crosshairColor = Color.FromArgb(100, 255, 0, 0);
-            ds.DrawLine(0, _currentPoint.Y, width, _currentPoint.Y, crosshairColor, 1);
-            ds.DrawLine(_currentPoint.X, 0, _currentPoint.X, height, crosshairColor, 1);
+                // Draw crosshair lines
+                var crosshairColor = Color.FromArgb(100, 255, 0, 0);
+                ds.DrawLine(0, _currentPoint.Y, width, _currentPoint.Y, crosshairColor, 1);
+                ds.DrawLine(_currentPoint.X, 0, _currentPoint.X, height, crosshairColor, 1);
 
-            // Draw dimension text near selection
-            var dimText = $"{(int)selWidth} x {(int)selHeight}";
-            ds.DrawText(dimText, left + 4, top - 20,
-                Color.FromArgb(255, 255, 255, 255),
-                new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
-                {
-                    FontSize = 12,
-                    FontFamily = "Consolas"
-                });
+                // Draw dimension text near selection
+                var dimText = $"{(int)selWidth} x {(int)selHeight}";
+                ds.DrawText(dimText, left + 4, top - 20,
+                    Color.FromArgb(255, 255, 255, 255),
+                    new Microsoft.Graphics.Canvas.Text.CanvasTextFormat
+                    {
+                        FontSize = 12,
+                        FontFamily = "Consolas"
+                    });
+            }
         }
         else
         {
@@ -145,6 +155,11 @@ public sealed partial class RegionCaptureWindow : Window
         if (width > 5 && height > 5)
         {
             SelectedRegion = new Rect(left, top, width, height);
+
+            // Flash the selected region before closing
+            _isFlashing = true;
+            OverlayCanvas.Invalidate();
+            await Task.Delay(150);
 
             // Close overlay and perform capture
             this.Close();

@@ -86,7 +86,8 @@
             <!-- Recent Captures -->
             <TextBlock Text="Recent Captures" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,24,0,0" />
 
-            <ListView x:Name="RecentCapturesList" MaxHeight="300" SelectionMode="Single">
+            <ListView x:Name="RecentCapturesList" MaxHeight="300" SelectionMode="Single"
+                      SelectionChanged="RecentCapturesList_SelectionChanged">
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <Grid Padding="4" ColumnSpacing="12">

@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI;
 using ShareZ.Interop;
 using System.Security.Cryptography;
 using System.Text;
@@ -10,7 +11,7 @@ namespace ShareZ.ViewModels;
 public partial class ToolsViewModel : ObservableObject
 {
     // Color Picker
-    [ObservableProperty] private Color _selectedColor = Colors.Red;
+    [ObservableProperty] private Color _selectedColor = Color.FromArgb(255, 255, 0, 0);
     [ObservableProperty] private string _hexColor = "#FF0000";
     [ObservableProperty] private string _rgbColor = "255, 0, 0";
     [ObservableProperty] private string _hslColor = "0, 100%, 50%";

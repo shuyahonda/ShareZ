@@ -67,4 +67,12 @@ public sealed partial class CapturePage : Page
             _autoCaptureService.Start();
         }
     }
+
+    private void RecentCapturesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (RecentCapturesList.SelectedItem is HistoryItem item && File.Exists(item.FilePath))
+        {
+            Frame.Navigate(typeof(EditorPage), item.FilePath);
+        }
+    }
 }

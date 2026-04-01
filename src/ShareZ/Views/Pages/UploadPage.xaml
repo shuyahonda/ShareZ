@@ -86,7 +86,7 @@
 
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Headers (JSON):" VerticalAlignment="Center" />
                 <TextBox Grid.Row="3" Grid.Column="1" x:Name="CustomHeaders"
-                         PlaceholderText='{"Authorization": "Bearer token"}' AcceptsReturn="True" Height="80" />
+                         PlaceholderText="{}{&quot;Authorization&quot;: &quot;Bearer token&quot;}" AcceptsReturn="True" Height="80" />
             </Grid>
 
             <Button Content="Save Upload Settings" Click="SaveUploadSettings_Click"

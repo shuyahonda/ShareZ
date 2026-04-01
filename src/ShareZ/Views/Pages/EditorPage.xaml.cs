@@ -4,10 +4,12 @@ using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.Graphics.Canvas.UI;
 using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Navigation;
 using ShareZ.Models;
 using ShareZ.ViewModels;
 using System.Numerics;
@@ -26,6 +28,15 @@ public sealed partial class EditorPage : Page
     {
         this.InitializeComponent();
         DataContext = _viewModel;
+    }
+
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is string filePath && !string.IsNullOrEmpty(filePath))
+        {
+            await LoadImageAsync(filePath);
+        }
     }
 
     public async Task LoadImageAsync(string filePath)
@@ -160,7 +171,7 @@ public sealed partial class EditorPage : Page
             case ShapeType.Crop:
                 // Draw crop region indicator
                 ds.DrawRectangle(topLeft.X, topLeft.Y, shape.Width, shape.Height,
-                    Colors.White, 2, new CanvasStrokeStyle { DashStyle = CanvasDashStyle.Dash });
+                    Color.FromArgb(255, 255, 255, 255), 2, new CanvasStrokeStyle { DashStyle = CanvasDashStyle.Dash });
                 break;
         }
     }
@@ -239,7 +250,7 @@ public sealed partial class EditorPage : Page
         var center = shape.StartPoint;
 
         ds.FillCircle(center, radius, shape.StrokeColor);
-        ds.DrawCircle(center, radius, Colors.White, 2);
+        ds.DrawCircle(center, radius, Color.FromArgb(255, 255, 255, 255), 2);
 
         var format = new CanvasTextFormat
         {
@@ -251,7 +262,7 @@ public sealed partial class EditorPage : Page
         };
 
         ds.DrawText(shape.StepNumber.ToString(), center.X - radius, center.Y - radius,
-            radius * 2, radius * 2, Colors.White, format);
+            radius * 2, radius * 2, Color.FromArgb(255, 255, 255, 255), format);
     }
 
     // Pointer Events

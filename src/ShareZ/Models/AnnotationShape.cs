@@ -1,3 +1,4 @@
+using Microsoft.UI;
 using System.Numerics;
 using Windows.UI;
 
@@ -24,7 +25,7 @@ public class AnnotationShape
     public Vector2 StartPoint { get; set; }
     public Vector2 EndPoint { get; set; }
     public Color StrokeColor { get; set; } = Color.FromArgb(255, 255, 0, 0);
-    public Color FillColor { get; set; } = Colors.Transparent;
+    public Color FillColor { get; set; } = Color.FromArgb(0, 0, 0, 0);
     public float StrokeWidth { get; set; } = 2f;
     public string Text { get; set; } = string.Empty;
     public float FontSize { get; set; } = 16f;

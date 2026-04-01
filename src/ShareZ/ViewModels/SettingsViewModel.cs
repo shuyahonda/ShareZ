@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ShareZ.Models;
+using ShareZ.Services;
 using System.Collections.ObjectModel;
 
 namespace ShareZ.ViewModels;

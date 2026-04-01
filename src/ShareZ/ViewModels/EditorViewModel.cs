@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Graphics.Canvas;
+using Microsoft.UI;
 using ShareZ.Models;
 using System.Collections.ObjectModel;
 using System.Numerics;
@@ -23,7 +24,7 @@ public partial class EditorViewModel : ObservableObject
     private Color _strokeColor = Color.FromArgb(255, 255, 0, 0);
 
     [ObservableProperty]
-    private Color _fillColor = Colors.Transparent;
+    private Color _fillColor = Color.FromArgb(0, 0, 0, 0);
 
     [ObservableProperty]
     private float _strokeWidth = 2f;

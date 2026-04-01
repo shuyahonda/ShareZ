@@ -79,9 +79,9 @@ public static partial class NativeMethods
     public const int SM_CYVIRTUALSCREEN = 79;
 
     // Tray icon
-    [LibraryImport("shell32.dll", EntryPoint = "Shell_NotifyIconW")]
+    [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
+    public static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
 
     public const uint NIM_ADD = 0x00000000;
     public const uint NIM_MODIFY = 0x00000001;
