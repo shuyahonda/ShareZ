@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ShareZ.Views.Pages.AfterCapturePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="16" MaxWidth="800">
+            <TextBlock Text="After Capture Tasks" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock Text="Configure what happens after a screenshot is captured"
+                       Style="{StaticResource BodyTextBlockStyle}" Opacity="0.7" />
+
+            <StackPanel Spacing="12" Margin="0,16,0,0">
+                <ToggleSwitch x:Name="CopyToClipboardToggle" Header="Copy image to clipboard"
+                              IsOn="True" Toggled="Task_Toggled" />
+                <ToggleSwitch x:Name="SaveToFileToggle" Header="Save image to file"
+                              IsOn="True" Toggled="Task_Toggled" />
+                <ToggleSwitch x:Name="OpenInEditorToggle" Header="Open in image editor"
+                              Toggled="Task_Toggled" />
+                <ToggleSwitch x:Name="UploadToggle" Header="Upload image"
+                              Toggled="Task_Toggled" />
+                <ToggleSwitch x:Name="CopyFilePathToggle" Header="Copy file path to clipboard"
+                              Toggled="Task_Toggled" />
+                <ToggleSwitch x:Name="ShowNotificationToggle" Header="Show notification"
+                              IsOn="True" Toggled="Task_Toggled" />
+                <ToggleSwitch x:Name="PlaySoundToggle" Header="Play capture sound"
+                              IsOn="True" Toggled="Task_Toggled" />
+            </StackPanel>
+
+            <TextBlock Text="Save Settings" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,24,0,0" />
+
+            <Grid RowSpacing="12" ColumnSpacing="16" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Screenshot folder:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="FolderPath" />
+                <Button Grid.Row="0" Grid.Column="2" Content="Browse" Click="BrowseFolder_Click" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="File name pattern:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="FilePattern" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="%Y-%M-%D_%h-%m-%s"
+                           VerticalAlignment="Center" Opacity="0.5" Style="{StaticResource CaptionTextBlockStyle}" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Image format:" VerticalAlignment="Center" />
+                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="ImageFormatCombo" SelectedIndex="0">
+                    <ComboBoxItem Content="PNG" />
+                    <ComboBoxItem Content="JPEG" />
+                    <ComboBoxItem Content="BMP" />
+                    <ComboBoxItem Content="GIF" />
+                    <ComboBoxItem Content="TIFF" />
+                </ComboBox>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="JPEG quality:" VerticalAlignment="Center" />
+                <Slider Grid.Row="3" Grid.Column="1" x:Name="JpegQualitySlider"
+                        Minimum="1" Maximum="100" Value="90" />
+                <TextBlock Grid.Row="3" Grid.Column="2" x:Name="JpegQualityText" Text="90%"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

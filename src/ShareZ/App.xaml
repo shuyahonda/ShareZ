@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="ShareZ.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ShareZ">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- App-wide colors -->
+            <SolidColorBrush x:Key="ShareZAccentBrush" Color="#0078D4" />
+            <SolidColorBrush x:Key="ShareZSecondaryBrush" Color="#005A9E" />
+
+            <!-- Capture overlay colors -->
+            <SolidColorBrush x:Key="CaptureOverlayBrush" Color="#40000000" />
+            <SolidColorBrush x:Key="CaptureSelectionBorderBrush" Color="#FF00AAFF" />
+            <SolidColorBrush x:Key="CaptureCrosshairBrush" Color="#CCFF0000" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

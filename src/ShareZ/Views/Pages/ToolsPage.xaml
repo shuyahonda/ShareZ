@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ShareZ.Views.Pages.ToolsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="16" MaxWidth="900">
+            <TextBlock Text="Tools" Style="{StaticResource TitleTextBlockStyle}" />
+
+            <!-- Color Picker -->
+            <Expander HorizontalAlignment="Stretch" IsExpanded="True">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE790;" FontSize="16" />
+                        <TextBlock Text="Color Picker" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Spacing="12" Padding="8">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <ColorPicker x:Name="MainColorPicker" ColorChanged="ColorPicker_Changed"
+                                     IsAlphaEnabled="False" IsHexInputVisible="True" />
+
+                        <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                            <Button Content="Pick Screen Color (Ctrl+Shift+X)" Click="PickScreenColor_Click"
+                                    HorizontalAlignment="Stretch" />
+
+                            <Grid RowSpacing="4" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="HEX:" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="HexText" IsReadOnly="True" />
+                                <Button Grid.Row="0" Grid.Column="2" Content="Copy" Click="CopyHex_Click" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="RGB:" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="RgbText" IsReadOnly="True" />
+                                <Button Grid.Row="1" Grid.Column="2" Content="Copy" Click="CopyRgb_Click" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="HSL:" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="HslText" IsReadOnly="True" />
+                                <Button Grid.Row="2" Grid.Column="2" Content="Copy" Click="CopyHsl_Click" />
+                            </Grid>
+
+                            <!-- Color Preview -->
+                            <Border Width="200" Height="48" CornerRadius="4" x:Name="ColorPreview"
+                                    Background="Red" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Expander>
+
+            <!-- OCR -->
+            <Expander HorizontalAlignment="Stretch">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8FE;" FontSize="16" />
+                        <TextBlock Text="OCR (Text Recognition)" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Spacing="8" Padding="8">
+                    <TextBlock Text="Capture a region and extract text from it" Opacity="0.7" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Capture and OCR" Click="CaptureOcr_Click"
+                                Style="{StaticResource AccentButtonStyle}" />
+                        <Button Content="OCR from File" Click="OcrFromFile_Click" />
+                        <Button Content="OCR from Clipboard" Click="OcrFromClipboard_Click" />
+                    </StackPanel>
+                    <TextBox x:Name="OcrResultText" AcceptsReturn="True" TextWrapping="Wrap"
+                             MinHeight="120" IsReadOnly="True" PlaceholderText="OCR result will appear here..." />
+                    <Button Content="Copy Text" Click="CopyOcrText_Click" />
+                </StackPanel>
+            </Expander>
+
+            <!-- Hash Check -->
+            <Expander HorizontalAlignment="Stretch">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE8D7;" FontSize="16" />
+                        <TextBlock Text="Hash Check" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Spacing="8" Padding="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Select File" Click="HashBrowse_Click" />
+                        <TextBlock x:Name="HashFileName" VerticalAlignment="Center" Opacity="0.7" />
+                    </StackPanel>
+
+                    <Grid RowSpacing="4" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="MD5:" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="0" Grid.Column="1" x:Name="Md5Text" IsReadOnly="True" FontFamily="Consolas" FontSize="11" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="SHA-1:" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="1" Grid.Column="1" x:Name="Sha1Text" IsReadOnly="True" FontFamily="Consolas" FontSize="11" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="SHA-256:" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="2" Grid.Column="1" x:Name="Sha256Text" IsReadOnly="True" FontFamily="Consolas" FontSize="11" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="SHA-512:" VerticalAlignment="Center" />
+                        <TextBox Grid.Row="3" Grid.Column="1" x:Name="Sha512Text" IsReadOnly="True" FontFamily="Consolas" FontSize="11" />
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <TextBox x:Name="CompareHashText" PlaceholderText="Paste hash to compare..." Width="400" />
+                        <TextBlock x:Name="HashMatchText" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+
+            <!-- QR Code -->
+            <Expander HorizontalAlignment="Stretch">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xED14;" FontSize="16" />
+                        <TextBlock Text="QR Code" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Spacing="8" Padding="8">
+                    <TextBox x:Name="QrInputText" PlaceholderText="Enter text to encode as QR code..."
+                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="Generate QR Code" Click="GenerateQr_Click"
+                                Style="{StaticResource AccentButtonStyle}" />
+                        <Button Content="Decode from Screen" Click="DecodeQr_Click" />
+                    </StackPanel>
+                    <Image x:Name="QrImage" MaxWidth="256" MaxHeight="256" HorizontalAlignment="Left" />
+                    <TextBlock x:Name="QrDecodeResult" TextWrapping="Wrap" />
+                </StackPanel>
+            </Expander>
+
+            <!-- Ruler -->
+            <Expander HorizontalAlignment="Stretch">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE9AC;" FontSize="16" />
+                        <TextBlock Text="Screen Ruler" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Spacing="8" Padding="8">
+                    <TextBlock Text="Measure pixel distances on screen" Opacity="0.7" />
+                    <Button Content="Open Ruler Overlay" Click="OpenRuler_Click"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    <TextBlock x:Name="RulerResult" />
+                </StackPanel>
+            </Expander>
+
+            <!-- DNS Lookup -->
+            <Expander HorizontalAlignment="Stretch">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE774;" FontSize="16" />
+                        <TextBlock Text="DNS Lookup" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Expander.Header>
+                <StackPanel Spacing="8" Padding="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="DnsHostInput" PlaceholderText="Enter hostname..." Width="300" />
+                        <Button Content="Lookup" Click="DnsLookup_Click" Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                    <TextBlock x:Name="DnsResultText" TextWrapping="Wrap" FontFamily="Consolas" />
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

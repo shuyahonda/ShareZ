@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ShareZ.Views.Pages.UploadPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="16" MaxWidth="800">
+            <TextBlock Text="Upload Destinations" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock Text="Configure where your screenshots are uploaded"
+                       Style="{StaticResource BodyTextBlockStyle}" Opacity="0.7" />
+
+            <!-- Upload Destinations List -->
+            <ListView x:Name="DestinationsList" SelectionMode="Single" MaxHeight="200" Margin="0,8,0,0">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="8" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE898;" FontSize="20" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Type}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.5" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="Default" VerticalAlignment="Center" Visibility="{Binding IsDefault}"
+                                       Foreground="{StaticResource ShareZAccentBrush}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Add Destination" Click="AddDestination_Click" Style="{StaticResource AccentButtonStyle}" />
+                <Button Content="Remove" Click="RemoveDestination_Click" />
+                <Button Content="Set as Default" Click="SetDefault_Click" />
+            </StackPanel>
+
+            <!-- Imgur Configuration -->
+            <TextBlock Text="Imgur Configuration" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,24,0,0" />
+
+            <Grid RowSpacing="8" ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Client ID:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="ImgurClientId"
+                         PlaceholderText="Enter your Imgur Client ID" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="API URL:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="ImgurApiUrl"
+                         Text="https://api.imgur.com/3/image" IsReadOnly="True" />
+            </Grid>
+
+            <!-- Custom Uploader Configuration -->
+            <TextBlock Text="Custom Uploader" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,24,0,0" />
+
+            <Grid RowSpacing="8" ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="CustomName" PlaceholderText="My Custom Uploader" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="URL:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="CustomUrl" PlaceholderText="https://example.com/upload" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Response URL pattern:" VerticalAlignment="Center" />
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="CustomResponsePattern" PlaceholderText="data.url" />
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Headers (JSON):" VerticalAlignment="Center" />
+                <TextBox Grid.Row="3" Grid.Column="1" x:Name="CustomHeaders"
+                         PlaceholderText='{"Authorization": "Bearer token"}' AcceptsReturn="True" Height="80" />
+            </Grid>
+
+            <Button Content="Save Upload Settings" Click="SaveUploadSettings_Click"
+                    Style="{StaticResource AccentButtonStyle}" Margin="0,16,0,0" />
+
+            <!-- Manual Upload -->
+            <TextBlock Text="Upload File" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,24,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Select and Upload File" Click="UploadFile_Click" />
+                <Button Content="Upload from Clipboard" Click="UploadClipboard_Click" />
+            </StackPanel>
+            <TextBlock x:Name="UploadStatus" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+        </StackPanel>
+    </ScrollViewer>
+</Page>

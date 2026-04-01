@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ShareZ.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ShareZ"
+    Title="ShareZ">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Title Bar Area -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="48" Background="{ThemeResource NavigationViewDefaultPaneBackground}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" Margin="16,0">
+                <FontIcon Glyph="&#xE722;" FontSize="16" VerticalAlignment="Center" />
+                <TextBlock Text="ShareZ" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold" />
+            </StackPanel>
+
+            <!-- Quick Actions -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="0,0,140,0">
+                <Button ToolTipService.ToolTip="Capture Region (Ctrl+Shift+4)" Click="CaptureRegion_Click" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE7A8;" FontSize="14" />
+                </Button>
+                <Button ToolTipService.ToolTip="Capture Fullscreen (PrtSc)" Click="CaptureFullscreen_Click" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE740;" FontSize="14" />
+                </Button>
+                <Button ToolTipService.ToolTip="Capture Window (Alt+PrtSc)" Click="CaptureWindow_Click" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE737;" FontSize="14" />
+                </Button>
+                <Button x:Name="RecordButton" ToolTipService.ToolTip="Start Recording (Ctrl+Shift+5)" Click="ToggleRecording_Click" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon x:Name="RecordIcon" Glyph="&#xE7C8;" FontSize="14" />
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Navigation and Content -->
+        <NavigationView
+            x:Name="NavView"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="True"
+            PaneDisplayMode="Left"
+            OpenPaneLength="200"
+            SelectionChanged="NavView_SelectionChanged">
+
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Capture" Tag="capture" Icon="Camera" />
+                <NavigationViewItem Content="Screen Recording" Tag="recording">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7C8;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Image Editor" Tag="editor">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE70F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItemSeparator />
+                <NavigationViewItem Content="After Capture" Tag="aftercapture">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE762;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Upload" Tag="upload">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE898;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Tools" Tag="tools">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE90F;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItemSeparator />
+                <NavigationViewItem Content="History" Tag="history">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Frame x:Name="ContentFrame" />
+        </NavigationView>
+
+        <!-- Status Bar -->
+        <Grid Grid.Row="2" Height="28" Background="{ThemeResource NavigationViewDefaultPaneBackground}" Padding="12,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock x:Name="StatusText" Text="Ready" VerticalAlignment="Center"
+                       Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+
+            <TextBlock x:Name="RecordingStatus" Grid.Column="1" VerticalAlignment="Center"
+                       Style="{StaticResource CaptionTextBlockStyle}" Foreground="Red"
+                       Visibility="Collapsed" Margin="8,0" />
+
+            <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                       Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.5"
+                       Text="ShareZ v1.0" />
+        </Grid>
+    </Grid>
+</Window>
