@@ -16,6 +16,102 @@ public class ScreenCaptureService
     public event EventHandler<string>? CaptureCompleted;
     public event EventHandler<string>? CaptureError;
 
+    /// <summary>
+    /// Pre-captures the full screen and returns a CanvasBitmap for use in region selection overlay.
+    /// </summary>
+    public async Task<CanvasBitmap?> CaptureScreenBitmapAsync()
+    {
+        try
+        {
+            var monitorHandle = CaptureHelper.GetPrimaryMonitorHandle();
+            var item = CaptureHelper.CreateItemForMonitor(monitorHandle);
+            if (item == null) return null;
+
+            var canvasDevice = new CanvasDevice();
+
+            using var framePool = Direct3D11CaptureFramePool.CreateFreeThreaded(
+                canvasDevice,
+                DirectXPixelFormat.B8G8R8A8UIntNormalized,
+                1,
+                item.Size);
+
+            using var session = framePool.CreateCaptureSession(item);
+
+            var tcs = new TaskCompletionSource<CanvasBitmap>();
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            cts.Token.Register(() => tcs.TrySetCanceled());
+
+            framePool.FrameArrived += (s, a) =>
+            {
+                using var frame = s.TryGetNextFrame();
+                if (frame != null)
+                {
+                    var bitmap = CanvasBitmap.CreateFromDirect3D11Surface(canvasDevice, frame.Surface);
+                    tcs.TrySetResult(bitmap);
+                }
+            };
+
+            session.IsCursorCaptureEnabled = App.Settings.CaptureCursor;
+            session.StartCapture();
+
+            try
+            {
+                var bitmap = await tcs.Task;
+                session.Dispose();
+                return bitmap;
+            }
+            catch (OperationCanceledException)
+            {
+                session.Dispose();
+                return null;
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Saves a pre-captured bitmap cropped to the specified region.
+    /// </summary>
+    public async Task<string?> SaveCroppedBitmapAsync(CanvasBitmap bitmap, Windows.Foundation.Rect region)
+    {
+        try
+        {
+            var filePath = FileNameHelper.GenerateFilePath(
+                App.Settings.ScreenshotFolder,
+                App.Settings.ScreenshotFilePattern,
+                App.Settings.DefaultImageFormat);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+            // Save full bitmap to temp file, then crop
+            var fullScreenPath = filePath + ".tmp.png";
+            var format = ImageFormatHelper.GetCanvasBitmapFormat(App.Settings.DefaultImageFormat);
+
+            using (var stream = new FileStream(fullScreenPath, FileMode.Create))
+            {
+                await bitmap.SaveAsync(stream.AsRandomAccessStream(), CanvasBitmapFileFormat.Png);
+            }
+
+            // Crop to region
+            await CropImageAsync(fullScreenPath, filePath, region);
+
+            // Clean up temp file
+            if (File.Exists(fullScreenPath))
+                File.Delete(fullScreenPath);
+
+            CaptureCompleted?.Invoke(this, filePath);
+            return filePath;
+        }
+        catch (Exception ex)
+        {
+            CaptureError?.Invoke(this, ex.Message);
+            return null;
+        }
+    }
+
     public async Task<string?> CaptureFullscreenAsync()
     {
         try

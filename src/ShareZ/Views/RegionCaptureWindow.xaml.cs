@@ -1,3 +1,4 @@
+using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -19,11 +20,13 @@ public sealed partial class RegionCaptureWindow : Window
     private bool _isSelecting;
     private bool _isCompleted;
     private bool _isFlashing;
+    private readonly CanvasBitmap? _screenBitmap;
 
     public Rect? SelectedRegion { get; private set; }
 
-    public RegionCaptureWindow()
+    public RegionCaptureWindow(CanvasBitmap? screenBitmap)
     {
+        _screenBitmap = screenBitmap;
         this.InitializeComponent();
 
         // Make fullscreen and borderless
@@ -36,11 +39,11 @@ public sealed partial class RegionCaptureWindow : Window
             presenter.SetBorderAndTitleBar(false, false);
         }
 
-        // Maximize
+        // Maximize to full display area (including taskbar)
         var displayArea = DisplayArea.GetFromWindowId(this.AppWindow.Id, DisplayAreaFallback.Primary);
         this.AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(
-            displayArea.WorkArea.X, displayArea.WorkArea.Y,
-            displayArea.WorkArea.Width, displayArea.WorkArea.Height));
+            displayArea.OuterBounds.X, displayArea.OuterBounds.Y,
+            displayArea.OuterBounds.Width, displayArea.OuterBounds.Height));
 
         // Handle ESC key
         this.Content.KeyDown += (s, e) =>
@@ -61,6 +64,13 @@ public sealed partial class RegionCaptureWindow : Window
         var width = (float)sender.ActualWidth;
         var height = (float)sender.ActualHeight;
 
+        // Draw the pre-captured screen image as background
+        if (_screenBitmap != null)
+        {
+            ds.DrawImage(_screenBitmap, new Windows.Foundation.Rect(0, 0, width, height),
+                new Windows.Foundation.Rect(0, 0, _screenBitmap.SizeInPixels.Width, _screenBitmap.SizeInPixels.Height));
+        }
+
         // Semi-transparent overlay
         ds.FillRectangle(0, 0, width, height, Color.FromArgb(100, 0, 0, 0));
 
@@ -71,8 +81,20 @@ public sealed partial class RegionCaptureWindow : Window
             var selWidth = Math.Abs(_currentPoint.X - _startPoint.X);
             var selHeight = Math.Abs(_currentPoint.Y - _startPoint.Y);
 
-            // Clear the selection area (make it transparent)
-            ds.FillRectangle(left, top, selWidth, selHeight, Color.FromArgb(0, 0, 0, 0));
+            if (_screenBitmap != null)
+            {
+                // Draw the clear (unshaded) region from the pre-captured image
+                var scaleX = _screenBitmap.SizeInPixels.Width / width;
+                var scaleY = _screenBitmap.SizeInPixels.Height / height;
+                ds.DrawImage(_screenBitmap,
+                    new Windows.Foundation.Rect(left, top, selWidth, selHeight),
+                    new Windows.Foundation.Rect(left * scaleX, top * scaleY, selWidth * scaleX, selHeight * scaleY));
+            }
+            else
+            {
+                // Fallback: clear selection area
+                ds.FillRectangle(left, top, selWidth, selHeight, Color.FromArgb(0, 0, 0, 0));
+            }
 
             if (_isFlashing)
             {
@@ -156,18 +178,47 @@ public sealed partial class RegionCaptureWindow : Window
         {
             SelectedRegion = new Rect(left, top, width, height);
 
+            // Calculate scale factors before closing the window (AppWindow becomes invalid after Close)
+            Rect? pixelRegion = null;
+            if (_screenBitmap != null)
+            {
+                var displayArea = DisplayArea.GetFromWindowId(this.AppWindow.Id, DisplayAreaFallback.Primary);
+                var displayWidth = (float)displayArea.OuterBounds.Width;
+                var displayHeight = (float)displayArea.OuterBounds.Height;
+                var scaleX = _screenBitmap.SizeInPixels.Width / displayWidth;
+                var scaleY = _screenBitmap.SizeInPixels.Height / displayHeight;
+
+                pixelRegion = new Rect(
+                    left * scaleX,
+                    top * scaleY,
+                    width * scaleX,
+                    height * scaleY);
+            }
+
             // Flash the selected region before closing
             _isFlashing = true;
             OverlayCanvas.Invalidate();
             await Task.Delay(150);
 
-            // Close overlay and perform capture
+            // Close overlay
             this.Close();
 
-            var path = await App.CaptureService.CaptureRegionAsync(SelectedRegion.Value);
-            if (path != null)
+            if (_screenBitmap != null && pixelRegion != null)
             {
-                await App.TaskService.ExecuteAfterCaptureAsync(path, CaptureType.Region);
+                var path = await App.CaptureService.SaveCroppedBitmapAsync(_screenBitmap, pixelRegion.Value);
+                if (path != null)
+                {
+                    await App.TaskService.ExecuteAfterCaptureAsync(path, CaptureType.Region);
+                }
+            }
+            else
+            {
+                // Fallback: capture live (may have timing issues)
+                var path = await App.CaptureService.CaptureRegionAsync(SelectedRegion.Value);
+                if (path != null)
+                {
+                    await App.TaskService.ExecuteAfterCaptureAsync(path, CaptureType.Region);
+                }
             }
         }
         else

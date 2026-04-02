@@ -51,8 +51,10 @@ public partial class MainViewModel : ObservableObject
     private async Task CaptureRegion()
     {
         StatusText = "Select region to capture...";
-        // Opens the region selection overlay window
-        var regionWindow = new Views.RegionCaptureWindow();
+        // Pre-capture the screen before showing the overlay so the overlay
+        // displays the actual desktop content and doesn't appear as a gray screen
+        var screenBitmap = await App.CaptureService.CaptureScreenBitmapAsync();
+        var regionWindow = new Views.RegionCaptureWindow(screenBitmap);
         regionWindow.Activate();
     }
 
