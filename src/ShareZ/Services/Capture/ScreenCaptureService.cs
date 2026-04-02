@@ -17,54 +17,16 @@ public class ScreenCaptureService
     public event EventHandler<string>? CaptureError;
 
     /// <summary>
-    /// Pre-captures the full screen and returns a CanvasBitmap for use in region selection overlay.
+    /// Pre-captures the full screen using GDI BitBlt and saves to a temp PNG file.
+    /// Returns the temp file path for use as overlay background.
     /// </summary>
-    public async Task<CanvasBitmap?> CaptureScreenBitmapAsync()
+    public async Task<string?> CaptureScreenToTempFileAsync()
     {
         try
         {
-            var monitorHandle = CaptureHelper.GetPrimaryMonitorHandle();
-            var item = CaptureHelper.CreateItemForMonitor(monitorHandle);
-            if (item == null) return null;
-
-            var canvasDevice = new CanvasDevice();
-
-            using var framePool = Direct3D11CaptureFramePool.CreateFreeThreaded(
-                canvasDevice,
-                DirectXPixelFormat.B8G8R8A8UIntNormalized,
-                1,
-                item.Size);
-
-            using var session = framePool.CreateCaptureSession(item);
-
-            var tcs = new TaskCompletionSource<CanvasBitmap>();
-            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => tcs.TrySetCanceled());
-
-            framePool.FrameArrived += (s, a) =>
-            {
-                using var frame = s.TryGetNextFrame();
-                if (frame != null)
-                {
-                    var bitmap = CanvasBitmap.CreateFromDirect3D11Surface(canvasDevice, frame.Surface);
-                    tcs.TrySetResult(bitmap);
-                }
-            };
-
-            session.IsCursorCaptureEnabled = App.Settings.CaptureCursor;
-            session.StartCapture();
-
-            try
-            {
-                var bitmap = await tcs.Task;
-                session.Dispose();
-                return bitmap;
-            }
-            catch (OperationCanceledException)
-            {
-                session.Dispose();
-                return null;
-            }
+            var tempPath = Path.Combine(Path.GetTempPath(), $"sharez_precap_{Guid.NewGuid():N}.png");
+            await CaptureScreenUsingGdiAsync(tempPath);
+            return File.Exists(tempPath) ? tempPath : null;
         }
         catch
         {
@@ -73,9 +35,9 @@ public class ScreenCaptureService
     }
 
     /// <summary>
-    /// Saves a pre-captured bitmap cropped to the specified region.
+    /// Saves a cropped region from a pre-captured image file.
     /// </summary>
-    public async Task<string?> SaveCroppedBitmapAsync(CanvasBitmap bitmap, Windows.Foundation.Rect region)
+    public async Task<string?> SaveCroppedRegionAsync(string sourceImagePath, Windows.Foundation.Rect region)
     {
         try
         {
@@ -86,21 +48,7 @@ public class ScreenCaptureService
 
             Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
-            // Save full bitmap to temp file, then crop
-            var fullScreenPath = filePath + ".tmp.png";
-            var format = ImageFormatHelper.GetCanvasBitmapFormat(App.Settings.DefaultImageFormat);
-
-            using (var stream = new FileStream(fullScreenPath, FileMode.Create))
-            {
-                await bitmap.SaveAsync(stream.AsRandomAccessStream(), CanvasBitmapFileFormat.Png);
-            }
-
-            // Crop to region
-            await CropImageAsync(fullScreenPath, filePath, region);
-
-            // Clean up temp file
-            if (File.Exists(fullScreenPath))
-                File.Delete(fullScreenPath);
+            await CropImageAsync(sourceImagePath, filePath, region);
 
             CaptureCompleted?.Invoke(this, filePath);
             return filePath;
@@ -130,7 +78,7 @@ public class ScreenCaptureService
             if (item == null)
             {
                 // Fallback: use GDI-based capture
-                await CaptureUsingGdiAsync(filePath);
+                await CaptureScreenUsingGdiAsync(filePath);
             }
             else
             {
@@ -205,7 +153,7 @@ public class ScreenCaptureService
             }
             else
             {
-                await CaptureUsingGdiAsync(fullScreenPath);
+                await CaptureScreenUsingGdiAsync(fullScreenPath);
             }
 
             // Crop to region
@@ -300,9 +248,11 @@ public class ScreenCaptureService
         }
     }
 
-    private async Task CaptureUsingGdiAsync(string filePath)
+    /// <summary>
+    /// Captures the full virtual screen using GDI BitBlt (reliable fallback).
+    /// </summary>
+    private async Task CaptureScreenUsingGdiAsync(string filePath)
     {
-        // Fallback GDI-based screen capture
         int width = NativeMethods.GetSystemMetrics(NativeMethods.SM_CXVIRTUALSCREEN);
         int height = NativeMethods.GetSystemMetrics(NativeMethods.SM_CYVIRTUALSCREEN);
         int x = NativeMethods.GetSystemMetrics(NativeMethods.SM_XVIRTUALSCREEN);
@@ -316,36 +266,107 @@ public class ScreenCaptureService
             y = 0;
         }
 
-        var canvasDevice = CanvasDevice.GetSharedDevice();
-        var renderTarget = new CanvasRenderTarget(canvasDevice, width, height, 96);
+        // Capture using GDI BitBlt
+        var screenDc = NativeMethods.GetDC(IntPtr.Zero);
+        var memDc = NativeMethods.CreateCompatibleDC(screenDc);
+        var hBitmap = NativeMethods.CreateCompatibleBitmap(screenDc, width, height);
+        var oldBitmap = NativeMethods.SelectObject(memDc, hBitmap);
 
-        using (var ds = renderTarget.CreateDrawingSession())
+        NativeMethods.BitBlt(memDc, 0, 0, width, height, screenDc, x, y, NativeMethods.SRCCOPY);
+
+        NativeMethods.SelectObject(memDc, oldBitmap);
+
+        // Extract pixel data from HBITMAP
+        var bmi = new NativeMethods.BITMAPINFO
         {
-            ds.Clear(Windows.UI.Color.FromArgb(0, 0, 0, 0));
-        }
+            bmiHeader = new NativeMethods.BITMAPINFOHEADER
+            {
+                biSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.BITMAPINFOHEADER>(),
+                biWidth = width,
+                biHeight = -height, // Negative for top-down DIB
+                biPlanes = 1,
+                biBitCount = 32,
+                biCompression = 0 // BI_RGB
+            }
+        };
 
-        var format = ImageFormatHelper.GetCanvasBitmapFormat(App.Settings.DefaultImageFormat);
-        using var stream = new FileStream(filePath, FileMode.Create);
-        await renderTarget.SaveAsync(stream.AsRandomAccessStream(), format);
+        var pixelData = new byte[width * height * 4];
+        NativeMethods.GetDIBits(memDc, hBitmap, 0, (uint)height, pixelData, ref bmi, NativeMethods.DIB_RGB_COLORS);
+
+        // Clean up GDI resources
+        NativeMethods.DeleteObject(hBitmap);
+        NativeMethods.DeleteDC(memDc);
+        NativeMethods.ReleaseDC(IntPtr.Zero, screenDc);
+
+        // Convert BGRA pixel data to PNG using BitmapEncoder
+        using var outputStream = new FileStream(filePath, FileMode.Create);
+        var encoder = await BitmapEncoder.CreateAsync(
+            BitmapEncoder.PngEncoderId,
+            outputStream.AsRandomAccessStream());
+
+        encoder.SetPixelData(
+            BitmapPixelFormat.Bgra8,
+            BitmapAlphaMode.Premultiplied,
+            (uint)width, (uint)height,
+            96, 96,
+            pixelData);
+
+        await encoder.FlushAsync();
     }
 
+    /// <summary>
+    /// Captures a specific window using GDI BitBlt.
+    /// </summary>
     private async Task CaptureWindowUsingGdiAsync(IntPtr hwnd, string filePath)
     {
         NativeMethods.GetWindowRect(hwnd, out var rect);
         int width = rect.Width;
         int height = rect.Height;
 
-        var canvasDevice = CanvasDevice.GetSharedDevice();
-        var renderTarget = new CanvasRenderTarget(canvasDevice, width, height, 96);
+        if (width <= 0 || height <= 0) return;
 
-        using (var ds = renderTarget.CreateDrawingSession())
+        var screenDc = NativeMethods.GetDC(IntPtr.Zero);
+        var memDc = NativeMethods.CreateCompatibleDC(screenDc);
+        var hBitmap = NativeMethods.CreateCompatibleBitmap(screenDc, width, height);
+        var oldBitmap = NativeMethods.SelectObject(memDc, hBitmap);
+
+        NativeMethods.BitBlt(memDc, 0, 0, width, height, screenDc, rect.Left, rect.Top, NativeMethods.SRCCOPY);
+
+        NativeMethods.SelectObject(memDc, oldBitmap);
+
+        var bmi = new NativeMethods.BITMAPINFO
         {
-            ds.Clear(Windows.UI.Color.FromArgb(255, 240, 240, 240));
-        }
+            bmiHeader = new NativeMethods.BITMAPINFOHEADER
+            {
+                biSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.BITMAPINFOHEADER>(),
+                biWidth = width,
+                biHeight = -height,
+                biPlanes = 1,
+                biBitCount = 32,
+                biCompression = 0
+            }
+        };
 
-        var format = ImageFormatHelper.GetCanvasBitmapFormat(App.Settings.DefaultImageFormat);
-        using var stream = new FileStream(filePath, FileMode.Create);
-        await renderTarget.SaveAsync(stream.AsRandomAccessStream(), format);
+        var pixelData = new byte[width * height * 4];
+        NativeMethods.GetDIBits(memDc, hBitmap, 0, (uint)height, pixelData, ref bmi, NativeMethods.DIB_RGB_COLORS);
+
+        NativeMethods.DeleteObject(hBitmap);
+        NativeMethods.DeleteDC(memDc);
+        NativeMethods.ReleaseDC(IntPtr.Zero, screenDc);
+
+        using var outputStream = new FileStream(filePath, FileMode.Create);
+        var encoder = await BitmapEncoder.CreateAsync(
+            BitmapEncoder.PngEncoderId,
+            outputStream.AsRandomAccessStream());
+
+        encoder.SetPixelData(
+            BitmapPixelFormat.Bgra8,
+            BitmapAlphaMode.Premultiplied,
+            (uint)width, (uint)height,
+            96, 96,
+            pixelData);
+
+        await encoder.FlushAsync();
     }
 
     private async Task CropImageAsync(string sourcePath, string destPath, Windows.Foundation.Rect region)

@@ -8,6 +8,7 @@
 
     <Grid Background="Transparent">
         <canvas:CanvasControl x:Name="OverlayCanvas"
+                              CreateResources="OverlayCanvas_CreateResources"
                               Draw="OverlayCanvas_Draw"
                               PointerPressed="OverlayCanvas_PointerPressed"
                               PointerMoved="OverlayCanvas_PointerMoved"

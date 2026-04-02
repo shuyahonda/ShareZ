@@ -20,13 +20,14 @@ public sealed partial class RegionCaptureWindow : Window
     private bool _isSelecting;
     private bool _isCompleted;
     private bool _isFlashing;
-    private readonly CanvasBitmap? _screenBitmap;
+    private readonly string? _screenImagePath;
+    private CanvasBitmap? _screenBitmap;
 
     public Rect? SelectedRegion { get; private set; }
 
-    public RegionCaptureWindow(CanvasBitmap? screenBitmap)
+    public RegionCaptureWindow(string? screenImagePath)
     {
-        _screenBitmap = screenBitmap;
+        _screenImagePath = screenImagePath;
         this.InitializeComponent();
 
         // Make fullscreen and borderless
@@ -50,12 +51,34 @@ public sealed partial class RegionCaptureWindow : Window
         {
             if (e.Key == VirtualKey.Escape)
             {
-                this.Close();
+                CleanupAndClose();
             }
         };
 
         // Ensure focus for keyboard input
         this.Content.Focus(FocusState.Programmatic);
+    }
+
+    private void OverlayCanvas_CreateResources(CanvasControl sender, Microsoft.Graphics.Canvas.UI.CanvasCreateResourcesEventArgs args)
+    {
+        // Load the pre-captured screen image onto the CanvasControl's device
+        if (_screenImagePath != null && File.Exists(_screenImagePath))
+        {
+            args.TrackAsyncAction(LoadScreenBitmapAsync(sender).AsAsyncAction());
+        }
+    }
+
+    private async Task LoadScreenBitmapAsync(CanvasControl sender)
+    {
+        try
+        {
+            _screenBitmap = await CanvasBitmap.LoadAsync(sender, _screenImagePath);
+            sender.Invalidate();
+        }
+        catch
+        {
+            _screenBitmap = null;
+        }
     }
 
     private void OverlayCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
@@ -67,8 +90,8 @@ public sealed partial class RegionCaptureWindow : Window
         // Draw the pre-captured screen image as background
         if (_screenBitmap != null)
         {
-            ds.DrawImage(_screenBitmap, new Windows.Foundation.Rect(0, 0, width, height),
-                new Windows.Foundation.Rect(0, 0, _screenBitmap.SizeInPixels.Width, _screenBitmap.SizeInPixels.Height));
+            ds.DrawImage(_screenBitmap, new Rect(0, 0, width, height),
+                new Rect(0, 0, _screenBitmap.SizeInPixels.Width, _screenBitmap.SizeInPixels.Height));
         }
 
         // Semi-transparent overlay
@@ -84,11 +107,11 @@ public sealed partial class RegionCaptureWindow : Window
             if (_screenBitmap != null)
             {
                 // Draw the clear (unshaded) region from the pre-captured image
-                var scaleX = _screenBitmap.SizeInPixels.Width / width;
-                var scaleY = _screenBitmap.SizeInPixels.Height / height;
+                var scaleX = (float)_screenBitmap.SizeInPixels.Width / width;
+                var scaleY = (float)_screenBitmap.SizeInPixels.Height / height;
                 ds.DrawImage(_screenBitmap,
-                    new Windows.Foundation.Rect(left, top, selWidth, selHeight),
-                    new Windows.Foundation.Rect(left * scaleX, top * scaleY, selWidth * scaleX, selHeight * scaleY));
+                    new Rect(left, top, selWidth, selHeight),
+                    new Rect(left * scaleX, top * scaleY, selWidth * scaleX, selHeight * scaleY));
             }
             else
             {
@@ -178,15 +201,15 @@ public sealed partial class RegionCaptureWindow : Window
         {
             SelectedRegion = new Rect(left, top, width, height);
 
-            // Calculate scale factors before closing the window (AppWindow becomes invalid after Close)
+            // Calculate pixel coordinates before closing
             Rect? pixelRegion = null;
             if (_screenBitmap != null)
             {
                 var displayArea = DisplayArea.GetFromWindowId(this.AppWindow.Id, DisplayAreaFallback.Primary);
                 var displayWidth = (float)displayArea.OuterBounds.Width;
                 var displayHeight = (float)displayArea.OuterBounds.Height;
-                var scaleX = _screenBitmap.SizeInPixels.Width / displayWidth;
-                var scaleY = _screenBitmap.SizeInPixels.Height / displayHeight;
+                var scaleX = (float)_screenBitmap.SizeInPixels.Width / displayWidth;
+                var scaleY = (float)_screenBitmap.SizeInPixels.Height / displayHeight;
 
                 pixelRegion = new Rect(
                     left * scaleX,
@@ -203,9 +226,14 @@ public sealed partial class RegionCaptureWindow : Window
             // Close overlay
             this.Close();
 
-            if (_screenBitmap != null && pixelRegion != null)
+            if (_screenImagePath != null && pixelRegion != null)
             {
-                var path = await App.CaptureService.SaveCroppedBitmapAsync(_screenBitmap, pixelRegion.Value);
+                // Crop from the pre-captured image (no re-capture needed)
+                var path = await App.CaptureService.SaveCroppedRegionAsync(_screenImagePath, pixelRegion.Value);
+
+                // Clean up temp file
+                try { File.Delete(_screenImagePath); } catch { }
+
                 if (path != null)
                 {
                     await App.TaskService.ExecuteAfterCaptureAsync(path, CaptureType.Region);
@@ -213,7 +241,7 @@ public sealed partial class RegionCaptureWindow : Window
             }
             else
             {
-                // Fallback: capture live (may have timing issues)
+                // Fallback: capture live
                 var path = await App.CaptureService.CaptureRegionAsync(SelectedRegion.Value);
                 if (path != null)
                 {
@@ -227,5 +255,15 @@ public sealed partial class RegionCaptureWindow : Window
             InfoPanel.Visibility = Visibility.Visible;
             SizeInfo.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private void CleanupAndClose()
+    {
+        // Clean up temp file on cancel
+        if (_screenImagePath != null)
+        {
+            try { File.Delete(_screenImagePath); } catch { }
+        }
+        this.Close();
     }
 }
